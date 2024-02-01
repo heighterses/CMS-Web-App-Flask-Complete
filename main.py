@@ -13,7 +13,6 @@ from sqlalchemy.orm import relationship
 # Import your forms from the forms.py
 from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm
 
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
 ckeditor = CKEditor(app)
@@ -39,9 +38,12 @@ gravatar = Gravatar(app,
                     use_ssl=False,
                     base_url=None)
 
+
 # CREATE DATABASE
 class Base(DeclarativeBase):
     pass
+
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///posts.db'
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
@@ -100,13 +102,15 @@ with app.app_context():
 def admin_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # If id is not 1 then return abort with 403 error
-        if current_user.id != 1:
+        # Grant admin access if user is logged in and has id 1
+        if current_user.is_authenticated and current_user.id == 1:
+            return f(*args, **kwargs)
+        else:
+            # If not admin, return abort with 403 error
             return abort(403)
-        # Otherwise continue with the route function
-        return f(*args, **kwargs)
 
     return decorated_function
+
 
 
 # Register new users into the User database
