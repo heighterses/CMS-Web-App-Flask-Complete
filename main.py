@@ -13,7 +13,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.orm import relationship
 # Import your forms from the forms.py
 from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm
-#---------------- A great saying if your code is running just don't touch it----------------
+
+# ---------------- A great saying if your code is running just don't touch it----------------
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
 
@@ -50,7 +51,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DB_URI", "sqlite:///post
 
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
-
 
 
 # CONFIGURE TABLES
@@ -114,7 +114,6 @@ def admin_only(f):
             return abort(403)
 
     return decorated_function
-
 
 
 # Register new users into the User database
