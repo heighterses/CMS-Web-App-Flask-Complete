@@ -1,6 +1,6 @@
 import os
 from datetime import date
-from flask import Flask, abort, render_template, redirect, url_for, flash
+from flask import Flask, abort, render_template, redirect, url_for, flash, request, session
 from flask_bootstrap import Bootstrap5
 from flask_ckeditor import CKEditor
 from flask_gravatar import Gravatar
@@ -119,6 +119,10 @@ def admin_only(f):
 # Register new users into the User database
 @app.route('/register', methods=["GET", "POST"])
 def register():
+    # Prevents signed in user from accessing Login (or Register)
+    if request.method == "GET" and current_user.is_authenticated:
+        return redirect("/")
+
     form = RegisterForm()
     if form.validate_on_submit():
 
@@ -150,6 +154,9 @@ def register():
 
 @app.route('/login', methods=["GET", "POST"])
 def login():
+    # Prevents signed in user from accessing Login (or Register)
+    if request.method == "GET" and current_user.is_authenticated:
+        return redirect("/")
     form = LoginForm()
     if form.validate_on_submit():
         password = form.password.data
@@ -161,13 +168,11 @@ def login():
             flash("That email does not exist, please try again.")
             return redirect(url_for('login'))
         # Password incorrect
-        elif not check_password_hash(user.password, password):
+        if not check_password_hash(user.password, password):
             flash('Password incorrect, please try again.')
             return redirect(url_for('login'))
-        else:
-            login_user(user)
-            return redirect(url_for('get_all_posts'))
-
+        login_user(user)
+        return redirect(url_for('get_all_posts'))
     return render_template("login.html", form=form, current_user=current_user)
 
 
@@ -187,23 +192,30 @@ def get_all_posts():
 # Add a POST method to be able to post comments
 @app.route("/post/<int:post_id>", methods=["GET", "POST"])
 def show_post(post_id):
+    # Prevents autofilling/autocapturing comment form on success by returning through GET
+    
     requested_post = db.get_or_404(BlogPost, post_id)
-    # Add the CommentForm to the route
-    comment_form = CommentForm()
-    # Only allow logged-in users to comment on posts
-    if comment_form.validate_on_submit():
-        if not current_user.is_authenticated:
-            flash("You need to login or register to comment.")
-            return redirect(url_for("login"))
+    # Add the CommentForm to the route, Manages GET Request
+    if request.method == "GET":
+        return render_template("post.html", post=requested_post, current_user=current_user, form=CommentForm())
 
-        new_comment = Comment(
-            text=comment_form.comment_text.data,
-            comment_author=current_user,
-            parent_post=requested_post
-        )
-        db.session.add(new_comment)
-        db.session.commit()
-    return render_template("post.html", post=requested_post, current_user=current_user, form=comment_form)
+    # Manages POST Requests, Only allow logged-in users to comment on posts
+    if not current_user.is_authenticated:
+        flash("You need to login or register to comment.")
+        return redirect(url_for("login"))
+
+    comment_form = CommentForm()
+    if not comment_form.validate_on_submit():
+        return render_template("post.html", post=requested_post, current_user=current_user, form=comment_form)
+
+    new_comment = Comment(
+        text=comment_form.comment_text.data,
+        comment_author=current_user,
+        parent_post=requested_post
+    )
+    db.session.add(new_comment)
+    db.session.commit()
+    return redirect(f"/post/{post_id}") # Makes a GET Request to the same route
 
 
 # Use a decorator so only an admin user can create new posts
@@ -269,4 +281,4 @@ def contact():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, port=5001)
+    app.run(debug=True, port=5001)
